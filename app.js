@@ -4,17 +4,23 @@
 const $ = (sel) => document.querySelector(sel);
 
 const CHAVES = {
-  lojas: 'km.lojas',
+  lojas: 'km.lojas',           // [{ id, nome, endereco, cidade: {nome, uf}, lat, lng }]
   historico: 'km.historico',
   rotas: 'km.rotas',
   geo: 'km.geo',
-  cidade: 'km.cidade',
+  cidade: 'km.cidade',         // { nome, uf }
+  municipios: 'km.municipios.', // + UF
 };
 
-const ORDEM = ['home', 'mapa', 'opcoes', 'historico'];
+const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB',
+  'PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+
+const ORDEM = ['home', 'mapa', 'opcoes', 'loja', 'remover', 'historico'];
+const TELAS_DE_OPCOES = ['loja', 'remover'];
 
 let minhaPos = null;   // { lat, lng, precisao }
-let pendente = null;   // dados de uma corrida esperando confirmação da loja no mapa
+let pendente = null;   // { id, nome, endereco, cidade, origem, calc }
+let edicaoId = null;   // id da loja em edição na tela de loja
 let mapa = null;
 let marcador = null;
 let leafletPronto = null;
@@ -46,8 +52,16 @@ function fmtR(v) {
   return v == null ? '—' : 'R$ ' + v.toFixed(2).replace('.', ',');
 }
 
-function mensagem(texto, erro = false) {
-  const m = $('#mensagem');
+function novoId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+function esperar(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function mensagem(texto, erro = false, seletor = '#mensagem') {
+  const m = $(seletor);
   m.textContent = texto;
   m.classList.toggle('erro', erro);
 }
@@ -59,7 +73,66 @@ function el(tag, texto, classe) {
   return e;
 }
 
+// ---------- cidade e lojas ----------
+
+function cidadeAtual() {
+  const c = ler(CHAVES.cidade, null);
+  return c && c.nome && c.uf ? c : null;
+}
+
+function rotuloCidade(c) {
+  return `${c.nome}/${c.uf}`;
+}
+
+function todasLojas() {
+  return ler(CHAVES.lojas, []);
+}
+
+function lojasDaCidade() {
+  const c = cidadeAtual();
+  if (!c) return [];
+  return todasLojas().filter((l) => l.cidade && l.cidade.nome === c.nome && l.cidade.uf === c.uf);
+}
+
+function lojasSemCidade() {
+  return todasLojas().filter((l) => !l.cidade);
+}
+
+function achaLoja(nome) {
+  const alvo = normalizar(nome);
+  const lojas = lojasDaCidade();
+  return (
+    lojas.find((l) => normalizar(l.nome) === alvo) ||
+    lojas.find((l) => normalizar(l.nome).includes(alvo) || alvo.includes(normalizar(l.nome))) ||
+    null
+  );
+}
+
+function atualizarCidadeHome() {
+  const c = cidadeAtual();
+  $('#cidade-atual').textContent = c ? `Cidade: ${rotuloCidade(c)}` : 'Cidade: escolha em Opções';
+}
+
+function atualizarListaLojas() {
+  const dl = $('#lojas-lista');
+  dl.innerHTML = '';
+  lojasDaCidade().forEach((l) => {
+    const o = document.createElement('option');
+    o.value = l.nome;
+    dl.appendChild(o);
+  });
+}
+
 // ---------- navegação entre telas ----------
+
+function marcarBotao(nome) {
+  let alvo = nome;
+  if (nome === 'mapa') alvo = pendente?.origem || 'home';
+  if (TELAS_DE_OPCOES.includes(nome)) alvo = 'opcoes';
+  document.querySelectorAll('.barra button').forEach((b) => {
+    b.classList.toggle('ativo', b.dataset.tela === alvo);
+  });
+}
 
 function mostrar(nome) {
   const atual = document.querySelector('.tela.ativa');
@@ -86,20 +159,23 @@ function mostrar(nome) {
   setTimeout(() => atual.classList.remove('saindo-esq', 'saindo-dir'), 250);
 }
 
-function marcarBotao(nome) {
-  document.querySelectorAll('.barra button').forEach((b) => {
-    b.classList.toggle('ativo', b.dataset.tela === nome);
-  });
+function navegar(nome) {
+  marcarBotao(nome);
+  mostrar(nome);
+  if (nome === 'home') {
+    atualizarCidadeHome();
+    atualizarListaLojas();
+  }
+  if (nome === 'opcoes') renderOpcoes();
+  if (nome === 'remover') renderRemover();
+  if (nome === 'historico') renderHistorico();
 }
 
 document.querySelectorAll('.barra button').forEach((b) => {
   b.addEventListener('click', () => {
-    const nome = b.dataset.tela;
-    if (pendente && nome === 'home') pendente = null;
-    marcarBotao(nome);
-    mostrar(nome);
-    if (nome === 'opcoes') renderOpcoes();
-    if (nome === 'historico') renderHistorico();
+    pendente = null;
+    edicaoId = null;
+    navegar(b.dataset.tela);
   });
 });
 
@@ -133,36 +209,11 @@ $('#btn-localizacao').addEventListener('click', async () => {
   }
 });
 
-// ---------- lojas cadastradas ----------
-
-function achaLoja(nome) {
-  const alvo = normalizar(nome);
-  const lojas = ler(CHAVES.lojas, []);
-  return (
-    lojas.find((l) => normalizar(l.nome) === alvo) ||
-    lojas.find((l) => normalizar(l.nome).includes(alvo) || alvo.includes(normalizar(l.nome))) ||
-    null
-  );
-}
-
-function atualizarListaLojas() {
-  const dl = $('#lojas-lista');
-  dl.innerHTML = '';
-  ler(CHAVES.lojas, []).forEach((l) => {
-    const o = document.createElement('option');
-    o.value = l.nome;
-    dl.appendChild(o);
-  });
-}
-
 // ---------- busca de endereço e rota ----------
 
-async function geocodificar(texto) {
-  const cidade = ler(CHAVES.cidade, '');
-  const consulta = cidade ? `${texto}, ${cidade}` : texto;
-
+async function buscarEndereco(consulta) {
   const cache = ler(CHAVES.geo, {});
-  if (cache[consulta]) return cache[consulta];
+  if (cache[consulta] !== undefined) return cache[consulta];
 
   const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=' +
     encodeURIComponent(consulta);
@@ -170,12 +221,14 @@ async function geocodificar(texto) {
   if (!r.ok) throw new Error('Falha na busca de endereço.');
 
   const j = await r.json();
-  if (!j.length) return null;
-
-  const res = { lat: +j[0].lat, lng: +j[0].lon, endereco: j[0].display_name };
+  const res = j.length ? { lat: +j[0].lat, lng: +j[0].lon, endereco: j[0].display_name } : null;
   cache[consulta] = res;
   gravar(CHAVES.geo, cache);
   return res;
+}
+
+function geocodificar(texto, cidade) {
+  return buscarEndereco(`${texto}, ${cidade.nome}, ${cidade.uf}, Brasil`);
 }
 
 async function distanciaKm(a, b) {
@@ -219,9 +272,22 @@ function carregarLeaflet() {
   return leafletPronto;
 }
 
-async function abrirMapa(p) {
+// encontrado: { lat, lng, endereco } ou null
+async function abrirMapa(encontrado, p) {
   await carregarLeaflet();
-  const centro = p.lat != null ? [p.lat, p.lng] : [minhaPos.lat, minhaPos.lng];
+
+  let centro = encontrado ? [encontrado.lat, encontrado.lng] : null;
+  if (!centro) {
+    const cid = await buscarEndereco(`${p.cidade.nome}, ${p.cidade.uf}, Brasil`).catch(() => null);
+    centro = cid ? [cid.lat, cid.lng] : minhaPos ? [minhaPos.lat, minhaPos.lng] : [0, 0];
+  }
+
+  $('#mapa-endereco').textContent = encontrado
+    ? `Endereço encontrado: ${encontrado.endereco}`
+    : 'Não encontrei o endereço. Toque no mapa no local certo.';
+
+  // espera a transição da tela terminar para o mapa medir o espaço certo
+  await esperar(300);
 
   if (!mapa) {
     mapa = L.map('mapa');
@@ -229,46 +295,56 @@ async function abrirMapa(p) {
       maxZoom: 19,
       attribution: '© OpenStreetMap',
     }).addTo(mapa);
+    mapa.on('click', (e) => {
+      if (marcador) marcador.setLatLng(e.latlng);
+      else marcador = L.marker(e.latlng, { draggable: true }).addTo(mapa);
+    });
   }
 
-  mapa.setView(centro, 17);
+  mapa.invalidateSize();
+  mapa.setView(centro, encontrado ? 17 : 14, { animate: false });
+
   if (marcador) marcador.remove();
   marcador = L.marker(centro, { draggable: true }).addTo(mapa);
-  setTimeout(() => mapa.invalidateSize(), 250);
 }
 
 $('#btn-cancelar-mapa').addEventListener('click', () => {
+  const origem = pendente?.origem || 'home';
   pendente = null;
-  marcarBotao('home');
-  mostrar('home');
-  mensagem('');
+  navegar(origem);
 });
 
 $('#btn-confirmar-mapa').addEventListener('click', async () => {
   if (!pendente || !marcador) return;
 
   const pos = marcador.getLatLng();
-  const loja = {
+  const lojas = todasLojas();
+  let loja = pendente.id ? lojas.find((l) => l.id === pendente.id) : null;
+  if (!loja) {
+    loja = { id: novoId() };
+    lojas.push(loja);
+  }
+  Object.assign(loja, {
     nome: pendente.nome,
+    endereco: pendente.endereco,
+    cidade: pendente.cidade,
     lat: pos.lat,
     lng: pos.lng,
-    endereco: pendente.endereco || '',
-  };
-
-  const lojas = ler(CHAVES.lojas, []);
-  lojas.push(loja);
+  });
   gravar(CHAVES.lojas, lojas);
-  atualizarListaLojas();
 
-  const dados = { nome: pendente.nome, cliente: pendente.cliente, valor: pendente.valor };
+  const { origem, calc } = pendente;
   pendente = null;
-  marcarBotao('home');
-  mostrar('home');
+  navegar(origem);
 
-  try {
-    await concluir(loja, dados);
-  } catch (e) {
-    mensagem(e.message, true);
+  if (calc) {
+    try {
+      await concluir(loja, calc);
+    } catch (e) {
+      mensagem(e.message, true);
+    }
+  } else {
+    mensagem('Loja salva.', false, '#msg-opcoes');
   }
 });
 
@@ -277,6 +353,9 @@ $('#btn-confirmar-mapa').addEventListener('click', async () => {
 $('#btn-calcular').addEventListener('click', calcular);
 
 async function calcular() {
+  const cidade = cidadeAtual();
+  if (!cidade) return mensagem('Escolha a cidade em Opções.', true);
+
   const nome = $('#loja').value.trim();
   const cliente = $('#cliente').value.trim();
   const valor = parseFloat($('#valor').value.replace(',', '.'));
@@ -292,24 +371,23 @@ async function calcular() {
 
     const loja = achaLoja(nome);
     if (loja) {
-      await concluir(loja, { nome, cliente, valor });
+      await concluir(loja, { cliente, valor });
       return;
     }
 
     // loja nova: busca o endereço e pede confirmação no mapa
     mensagem('Buscando a loja...');
-    const g = await geocodificar(nome).catch(() => null);
+    const g = await geocodificar(nome, cidade).catch(() => null);
     pendente = {
+      id: null,
       nome,
-      cliente,
-      valor,
-      lat: g ? g.lat : null,
-      lng: g ? g.lng : null,
-      endereco: g ? g.endereco : '',
+      endereco: '',
+      cidade,
+      origem: 'home',
+      calc: { cliente, valor },
     };
-    marcarBotao('mapa');
-    mostrar('mapa');
-    await abrirMapa(pendente);
+    navegar('mapa');
+    await abrirMapa(g, pendente);
     mensagem('Confirme o ponto da loja no mapa.');
   } catch (e) {
     mensagem(e.message, true);
@@ -318,7 +396,7 @@ async function calcular() {
 
 async function concluir(loja, dados) {
   mensagem('Buscando o endereço do cliente...');
-  const cli = await geocodificar(dados.cliente);
+  const cli = await geocodificar(dados.cliente, cidadeAtual() || loja.cidade);
   if (!cli) {
     throw new Error('Não encontrei o endereço do cliente. Inclua o bairro ou a cidade.');
   }
@@ -350,42 +428,184 @@ async function concluir(loja, dados) {
   mensagem(`Pronto: ${fmtKm(total)} no total, ${fmtR(valorKm)} por km.`);
 }
 
-// ---------- opções ----------
+// ---------- opções: cidade ----------
+
+function preencherUFs() {
+  const sel = $('#uf');
+  if (sel.options.length) return;
+  UFS.forEach((uf) => sel.add(new Option(uf, uf)));
+}
+
+async function carregarMunicipios(uf) {
+  const chave = CHAVES.municipios + uf;
+  let lista = ler(chave, null);
+  if (!lista) {
+    const r = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios?orderBy=nome`);
+    if (!r.ok) throw new Error('Não consegui carregar as cidades.');
+    lista = (await r.json()).map((m) => m.nome);
+    gravar(chave, lista);
+  }
+  return lista;
+}
+
+async function popularCidades(uf, atual) {
+  const sel = $('#municipio');
+  sel.disabled = true;
+  sel.innerHTML = '';
+  sel.add(new Option('Carregando...', ''));
+  try {
+    const lista = await carregarMunicipios(uf);
+    sel.innerHTML = '';
+    sel.add(new Option('Escolha a cidade', ''));
+    lista.forEach((n) => sel.add(new Option(n, n)));
+    sel.disabled = false;
+    if (atual && atual.uf === uf) sel.value = atual.nome;
+  } catch (e) {
+    sel.innerHTML = '';
+    sel.add(new Option('Sem conexão', ''));
+    mensagem(e.message, true, '#msg-opcoes');
+  }
+}
+
+$('#uf').addEventListener('change', (e) => {
+  popularCidades(e.target.value, null);
+});
+
+$('#municipio').addEventListener('change', (e) => {
+  const nome = e.target.value;
+  if (!nome) return;
+  gravar(CHAVES.cidade, { nome, uf: $('#uf').value });
+  mensagem(`Cidade escolhida: ${nome}/${$('#uf').value}.`, false, '#msg-opcoes');
+  atualizarCidadeHome();
+  atualizarTituloCidade();
+  listarLojas();
+});
+
+function atualizarTituloCidade() {
+  const c = cidadeAtual();
+  $('#titulo-cidade').textContent = c ? rotuloCidade(c) : 'nenhuma cidade escolhida';
+}
+
+// ---------- opções: lojas ----------
 
 function renderOpcoes() {
-  $('#cidade-padrao').value = ler(CHAVES.cidade, '');
+  preencherUFs();
+  const c = cidadeAtual();
+  $('#uf').value = c ? c.uf : $('#uf').value;
+  popularCidades($('#uf').value, c);
+  atualizarTituloCidade();
+  listarLojas();
+}
 
+function itemLoja(l) {
+  const li = document.createElement('li');
+  const texto = document.createElement('div');
+  texto.appendChild(el('div', l.nome));
+  if (l.endereco) texto.appendChild(el('small', l.endereco));
+  const btn = el('button', 'editar');
+  btn.addEventListener('click', () => abrirFormLoja(l));
+  li.append(texto, btn);
+  return li;
+}
+
+function listarLojas() {
   const ul = $('#lista-lojas');
   ul.innerHTML = '';
-  const lojas = ler(CHAVES.lojas, []);
+  const lojas = lojasDaCidade();
+  if (!lojas.length) ul.appendChild(el('li', 'Nenhuma loja nesta cidade.'));
+  lojas.forEach((l) => ul.appendChild(itemLoja(l)));
+
+  const semCidade = lojasSemCidade();
+  $('#bloco-sem-cidade').hidden = !semCidade.length;
+  const ul2 = $('#lista-sem-cidade');
+  ul2.innerHTML = '';
+  semCidade.forEach((l) => ul2.appendChild(itemLoja(l)));
+}
+
+function abrirFormLoja(loja) {
+  edicaoId = loja ? loja.id : null;
+  $('#titulo-form').textContent = loja ? 'Editar loja' : 'Nova loja';
+  $('#loja-nome-form').value = loja ? loja.nome : '';
+  $('#loja-endereco-form').value = loja ? loja.endereco || '' : '';
+  navegar('loja');
+}
+
+$('#btn-adicionar').addEventListener('click', () => abrirFormLoja(null));
+
+$('#btn-voltar-loja').addEventListener('click', () => {
+  edicaoId = null;
+  navegar('opcoes');
+});
+
+$('#btn-salvar-loja').addEventListener('click', async () => {
+  const nome = $('#loja-nome-form').value.trim();
+  const endereco = $('#loja-endereco-form').value.trim();
+  if (!nome) return mensagem('Informe o nome da loja.', true, '#msg-opcoes');
+
+  const existente = edicaoId ? todasLojas().find((l) => l.id === edicaoId) : null;
+  const cidade = existente?.cidade || cidadeAtual();
+  if (!cidade) return mensagem('Escolha a cidade antes de cadastrar a loja.', true, '#msg-opcoes');
+
+  mensagem('Buscando no mapa...', false, '#msg-opcoes');
+  try {
+    const g = await geocodificar(endereco || nome, cidade).catch(() => null);
+    pendente = {
+      id: existente ? existente.id : null,
+      nome,
+      endereco,
+      cidade,
+      origem: 'opcoes',
+      calc: null,
+    };
+    edicaoId = null;
+    navegar('mapa');
+    await abrirMapa(g, pendente);
+  } catch (e) {
+    mensagem(e.message, true, '#msg-opcoes');
+  }
+});
+
+// ---------- opções: remover lojas ----------
+
+function renderRemover() {
+  const ul = $('#lista-remover');
+  ul.innerHTML = '';
+  const lojas = todasLojas();
   if (!lojas.length) {
-    ul.appendChild(el('li', 'Nenhuma loja cadastrada ainda.'));
+    ul.appendChild(el('li', 'Nenhuma loja cadastrada.'));
     return;
   }
-  lojas.forEach((l, i) => {
-    const li = el('li', l.nome);
-    const btn = el('button', 'remover');
-    btn.addEventListener('click', () => {
-      const atual = ler(CHAVES.lojas, []);
-      atual.splice(i, 1);
-      gravar(CHAVES.lojas, atual);
-      atualizarListaLojas();
-      renderOpcoes();
-    });
-    li.appendChild(btn);
+  lojas.forEach((l) => {
+    const li = document.createElement('li');
+    const label = document.createElement('label');
+    label.className = 'marcar';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = l.id;
+    const sufixo = l.cidade ? ` — ${rotuloCidade(l.cidade)}` : ' — sem cidade';
+    label.append(cb, `${l.nome}${sufixo}`);
+    li.appendChild(label);
     ul.appendChild(li);
   });
 }
 
-$('#btn-salvar-cidade').addEventListener('click', () => {
-  gravar(CHAVES.cidade, $('#cidade-padrao').value.trim());
-  mensagem('Cidade salva.');
+$('#btn-remover').addEventListener('click', () => navegar('remover'));
+
+$('#btn-voltar-remover').addEventListener('click', () => navegar('opcoes'));
+
+$('#btn-confirmar-remover').addEventListener('click', () => {
+  const ids = [...document.querySelectorAll('#lista-remover input:checked')].map((i) => i.value);
+  if (ids.length) {
+    gravar(CHAVES.lojas, todasLojas().filter((l) => !ids.includes(l.id)));
+  }
+  navegar('opcoes');
+  mensagem(ids.length ? `${ids.length} loja(s) removida(s).` : 'Nenhuma loja removida.', false, '#msg-opcoes');
 });
 
 $('#btn-limpar-historico').addEventListener('click', () => {
   if (!confirm('Apagar todo o histórico?')) return;
   localStorage.removeItem(CHAVES.historico);
-  renderHistorico();
+  mensagem('Histórico apagado.', false, '#msg-opcoes');
 });
 
 // ---------- histórico ----------
@@ -403,7 +623,7 @@ function renderHistorico() {
     const li = document.createElement('li');
     const texto = document.createElement('div');
     texto.appendChild(el('div', `${c.loja} → ${c.cliente}`));
-    texto.appendChild(el('div', `${data} · ${fmtKm(c.kmTotal)} · ${fmtR(c.valorKm)}/km`));
+    texto.appendChild(el('small', `${data} · ${fmtKm(c.kmTotal)} · ${fmtR(c.valorKm)}/km`));
     li.appendChild(texto);
     ul.appendChild(li);
   });
@@ -411,4 +631,13 @@ function renderHistorico() {
 
 // ---------- início ----------
 
-atualizarListaLojas();
+(function iniciar() {
+  // lojas salvas por versões anteriores não tinham id
+  const lojas = todasLojas();
+  if (lojas.some((l) => !l.id)) {
+    lojas.forEach((l) => { if (!l.id) l.id = novoId(); });
+    gravar(CHAVES.lojas, lojas);
+  }
+  atualizarCidadeHome();
+  atualizarListaLojas();
+})();

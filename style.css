@@ -73,7 +73,8 @@ label {
   margin: 10px 0;
   font-size: 13px;
 }
-input {
+input,
+select {
   display: block;
   width: 100%;
   margin-top: 4px;
@@ -127,6 +128,30 @@ input {
   font: inherit;
   cursor: pointer;
 }
+
+.lista small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  opacity: .7;
+}
+.lista li button.editar {
+  align-self: center;
+  padding: 4px 10px;
+  color: #111;
+  border: 1px solid #111;
+  border-radius: 8px;
+}
+.marcar {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+}
+.marcar input {
+  width: auto;
+  margin: 0 8px 0 0;
+}
+[hidden] { display: none !important; }
 
 /* Barra inferior (menu) */
 .barra {

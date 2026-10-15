@@ -22,6 +22,7 @@
   <main class="visor" id="visor">
 
     <section class="tela ativa" id="tela-home">
+      <div class="estado" id="cidade-atual">Cidade: escolha em Opções</div>
       <div class="estado" id="estado-local">Localização: não obtida</div>
       <button class="botao" id="btn-localizacao">Minha localização</button>
 
@@ -43,22 +44,54 @@
     </section>
 
     <section class="tela" id="tela-mapa">
-      <p class="dica">Arraste o marcador até o ponto exato da loja e confirme.</p>
+      <p class="dica">Toque no mapa ou arraste o marcador até o ponto exato da loja e confirme.</p>
+      <p class="dica" id="mapa-endereco"></p>
       <div id="mapa"></div>
       <button class="botao primario" id="btn-confirmar-mapa">Confirmar local</button>
       <button class="botao" id="btn-cancelar-mapa">Cancelar</button>
     </section>
 
     <section class="tela" id="tela-opcoes">
-      <label>Cidade e UF para a busca de endereços
-        <input id="cidade-padrao" autocomplete="off" placeholder="ex.: Natal, RN">
+      <h3>Cidade</h3>
+      <label>Estado
+        <select id="uf"></select>
       </label>
-      <button class="botao" id="btn-salvar-cidade">Salvar cidade</button>
+      <label>Cidade
+        <select id="municipio" disabled></select>
+      </label>
+      <div class="mensagem" id="msg-opcoes" role="status"></div>
 
-      <h3>Lojas cadastradas</h3>
+      <h3>Lojas de <span id="titulo-cidade">—</span></h3>
+      <button class="botao" id="btn-adicionar">Adicionar loja</button>
+      <button class="botao" id="btn-remover">Remover lojas</button>
       <ul class="lista" id="lista-lojas"></ul>
 
+      <div id="bloco-sem-cidade" hidden>
+        <h3>Sem cidade</h3>
+        <p class="dica">Estas lojas foram cadastradas antes da escolha de cidade. Toque em editar para atribuir uma.</p>
+        <ul class="lista" id="lista-sem-cidade"></ul>
+      </div>
+
       <button class="botao perigo" id="btn-limpar-historico">Apagar histórico</button>
+    </section>
+
+    <section class="tela" id="tela-loja">
+      <h3 id="titulo-form">Nova loja</h3>
+      <label>Nome da loja
+        <input id="loja-nome-form" autocomplete="off" placeholder="ex.: Drogazil 6">
+      </label>
+      <label>Endereço
+        <input id="loja-endereco-form" autocomplete="off" placeholder="rua, número, bairro">
+      </label>
+      <button class="botao primario" id="btn-salvar-loja">Salvar e ver no mapa</button>
+      <button class="botao" id="btn-voltar-loja">Voltar</button>
+    </section>
+
+    <section class="tela" id="tela-remover">
+      <p class="dica">Marque as lojas que quer remover.</p>
+      <ul class="lista" id="lista-remover"></ul>
+      <button class="botao perigo" id="btn-confirmar-remover">Remover e salvar</button>
+      <button class="botao" id="btn-voltar-remover">Voltar</button>
     </section>
 
     <section class="tela" id="tela-historico">
