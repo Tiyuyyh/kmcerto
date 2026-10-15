@@ -1,6 +1,8 @@
 # KM Certo
 
-App pessoal para saber, antes de aceitar uma corrida, quanto ela rende por quilômetro.
+App pessoal para saber, antes de aceitar uma corrida do BEE Delivery (abelha), de onde ela sai, para onde vai e quanto paga por quilômetro.
+
+No futuro poderá receber outros aplicativos que não informam esses dados. Esta página é de teste e não é adequada para uso real.
 
 Você informa a loja e o endereço do cliente. O app calcula:
 
@@ -10,6 +12,14 @@ Você informa a loja e o endereço do cliente. O app calcula:
 - valor por km (valor pago ÷ total de km).
 
 Esta versão é a web, usada para testar a lógica e o visual. O app Android com o botão flutuante vem depois, reaproveitando essa lógica.
+
+## Estrutura de pastas
+
+- `index.html`: a página principal (todas as telas).
+- `css/paleta.css`: as cores do app. Para trocar uma cor, mude só este arquivo.
+- `css/style.css`: os estilos (layout, botões, barra inferior).
+- `js/app.js`: toda a lógica (localização, busca de endereço, mapa, rotas, cálculo, opções e histórico).
+- `README.md`: este documento.
 
 ## Como usar
 

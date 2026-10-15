@@ -1,3 +1,5 @@
+/* Estilos do KM Certo. As cores vêm de css/paleta.css. */
+
 *,
 *::before,
 *::after { box-sizing: border-box; }
@@ -6,8 +8,8 @@ html, body {
   margin: 0;
   height: 100%;
   font-family: ui-monospace, "Courier New", monospace;
-  color: #111;
-  background: #fff;
+  color: var(--cor-texto);
+  background: var(--cor-fundo);
 }
 
 body {
@@ -19,8 +21,8 @@ body {
 
 /* Painel KM (topo) */
 .painel-km {
-  background: #111;
-  color: #fff;
+  background: var(--cor-painel);
+  color: var(--cor-texto-claro);
   padding: 12px 14px;
 }
 .titulo {
@@ -44,7 +46,7 @@ body {
   flex: 1;
   position: relative;
   overflow: hidden;
-  background: #fafafa;
+  background: var(--cor-fundo-visor);
 }
 
 /* Telas dentro do visor, com transição leve */
@@ -67,6 +69,16 @@ body {
 .tela.saindo-dir { opacity: 0; transform: translateX(24px); }
 .tela.sem-transicao { transition: none; }
 
+/* Aviso da página principal */
+.aviso {
+  border: 1px solid var(--cor-borda-suave);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.aviso p { margin: 6px 0 0; }
+
 /* Formulário e botões */
 label {
   display: block;
@@ -79,31 +91,38 @@ select {
   width: 100%;
   margin-top: 4px;
   padding: 11px;
-  border: 1px solid #bbb;
+  border: 1px solid var(--cor-borda);
   border-radius: 8px;
   font: inherit;
   font-size: 16px;
-  background: #fff;
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
 }
 .botao {
   display: block;
   width: 100%;
   margin: 10px 0;
   padding: 12px;
-  border: 1px solid #111;
+  border: 1px solid var(--cor-texto);
   border-radius: 10px;
-  background: #fff;
-  color: #111;
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
   font: inherit;
   font-size: 15px;
   cursor: pointer;
 }
-.botao.primario { background: #111; color: #fff; }
-.botao.perigo { color: #b00020; border-color: #b00020; }
+.botao.primario {
+  background: var(--cor-texto);
+  color: var(--cor-texto-claro);
+}
+.botao.perigo {
+  color: var(--cor-perigo);
+  border-color: var(--cor-perigo);
+}
 
 .estado { font-size: 13px; opacity: .8; margin-bottom: 6px; }
 .mensagem { min-height: 1.2em; margin-top: 8px; font-size: 13px; }
-.mensagem.erro { color: #b00020; }
+.mensagem.erro { color: var(--cor-perigo); }
 .dica { font-size: 13px; }
 
 #mapa {
@@ -118,17 +137,9 @@ select {
   justify-content: space-between;
   gap: 8px;
   padding: 10px 0;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--cor-borda-suave);
   font-size: 14px;
 }
-.lista li button {
-  border: 0;
-  background: none;
-  color: #b00020;
-  font: inherit;
-  cursor: pointer;
-}
-
 .lista small {
   display: block;
   margin-top: 2px;
@@ -138,9 +149,12 @@ select {
 .lista li button.editar {
   align-self: center;
   padding: 4px 10px;
-  color: #111;
-  border: 1px solid #111;
+  color: var(--cor-texto);
+  border: 1px solid var(--cor-texto);
   border-radius: 8px;
+  background: var(--cor-fundo);
+  font: inherit;
+  cursor: pointer;
 }
 .marcar {
   display: flex;
@@ -158,7 +172,7 @@ select {
   display: flex;
   gap: 8px;
   padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
-  background: #000;
+  background: var(--cor-barra);
 }
 .barra button {
   flex: 1;
@@ -170,7 +184,7 @@ select {
   border: 0;
   border-radius: 14px;
   background: none;
-  color: #bbb;
+  color: var(--cor-barra-texto);
   font: inherit;
   font-size: 12px;
   cursor: pointer;
@@ -186,6 +200,6 @@ select {
   stroke-linejoin: round;
 }
 .barra button.ativo {
-  background: #fff;
-  color: #000;
+  background: var(--cor-texto-claro);
+  color: var(--cor-barra);
 }

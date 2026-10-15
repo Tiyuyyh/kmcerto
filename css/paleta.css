@@ -1,0 +1,18 @@
+/*
+  PALETA DE CORES — KM Certo
+  Todas as cores do app ficam aqui. Para mudar uma cor, mude só este arquivo.
+  O style.css usa estas variáveis; não escreva cores fixas em outros arquivos.
+*/
+
+:root {
+  --cor-fundo: #ffffff;          /* fundo da página */
+  --cor-fundo-visor: #fafafa;    /* fundo do visor (área do meio) */
+  --cor-texto: #111111;          /* texto principal e botões */
+  --cor-texto-claro: #ffffff;    /* texto sobre fundo escuro */
+  --cor-painel: #111111;         /* painel KM do topo */
+  --cor-barra: #000000;          /* barra inferior (menu) */
+  --cor-barra-texto: #bbbbbb;    /* botões inativos da barra */
+  --cor-borda: #bbbbbb;          /* bordas de campos e botões */
+  --cor-borda-suave: #dddddd;    /* linhas entre itens de lista */
+  --cor-perigo: #b00020;         /* erros e ações de remover/apagar */
+}
