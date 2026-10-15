@@ -70,3 +70,8 @@ O site é servido pelo GitHub Pages a partir da branch `main`, na raiz do reposi
 - Validar, em corridas reais, se a distância fica dentro da margem de 10% aceita.
 - Definir o visual final do menu inferior a partir do print de referência.
 - Projetar o app Android (botão flutuante e leitura da tela do BI Delivery).
+
+## Contribuidores
+
+- **Tiyuyyh**: dono do projeto, define as regras, testa e decide as mudanças.
+- **Claude** (modelo Claude Haiku 5.5, Anthropic): escreve o código, a documentação e os ajustes a partir das instruções.
