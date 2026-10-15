@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <title>KM Certo</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="painel-km">
+    <div class="titulo">KM</div>
+    <div class="grade">
+      <div><span class="rotulo">Até a loja</span><strong id="km-loja">—</strong></div>
+      <div><span class="rotulo">Loja → cliente</span><strong id="km-cliente">—</strong></div>
+      <div><span class="rotulo">Total</span><strong id="km-total">—</strong></div>
+      <div><span class="rotulo">R$ por km</span><strong id="valor-km">—</strong></div>
+    </div>
+  </header>
+
+  <main class="visor" id="visor">
+
+    <section class="tela ativa" id="tela-home">
+      <div class="estado" id="estado-local">Localização: não obtida</div>
+      <button class="botao" id="btn-localizacao">Minha localização</button>
+
+      <label>Loja
+        <input id="loja" list="lojas-lista" autocomplete="off" placeholder="ex.: Drogazil 6">
+      </label>
+      <datalist id="lojas-lista"></datalist>
+
+      <label>Endereço do cliente
+        <input id="cliente" autocomplete="off" placeholder="rua, número, bairro">
+      </label>
+
+      <label>Valor pago (R$)
+        <input id="valor" inputmode="decimal" placeholder="0,00">
+      </label>
+
+      <button class="botao primario" id="btn-calcular">Calcular</button>
+      <div id="mensagem" class="mensagem" role="status"></div>
+    </section>
+
+    <section class="tela" id="tela-mapa">
+      <p class="dica">Arraste o marcador até o ponto exato da loja e confirme.</p>
+      <div id="mapa"></div>
+      <button class="botao primario" id="btn-confirmar-mapa">Confirmar local</button>
+      <button class="botao" id="btn-cancelar-mapa">Cancelar</button>
+    </section>
+
+    <section class="tela" id="tela-opcoes">
+      <label>Cidade e UF para a busca de endereços
+        <input id="cidade-padrao" autocomplete="off" placeholder="ex.: Natal, RN">
+      </label>
+      <button class="botao" id="btn-salvar-cidade">Salvar cidade</button>
+
+      <h3>Lojas cadastradas</h3>
+      <ul class="lista" id="lista-lojas"></ul>
+
+      <button class="botao perigo" id="btn-limpar-historico">Apagar histórico</button>
+    </section>
+
+    <section class="tela" id="tela-historico">
+      <ul class="lista" id="lista-historico"></ul>
+    </section>
+
+  </main>
+
+  <nav class="barra">
+    <button data-tela="home" class="ativo">
+      <svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+      <span>Home</span>
+    </button>
+    <button data-tela="opcoes">
+      <svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+      <span>Opções</span>
+    </button>
+    <button data-tela="historico">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span>Histórico</span>
+    </button>
+  </nav>
+
+  <script src="app.js"></script>
+</body>
+</html>
