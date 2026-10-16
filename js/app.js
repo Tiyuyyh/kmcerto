@@ -98,30 +98,35 @@ function lojasSemCidade() {
   return todasLojas().filter((l) => !l.cidade);
 }
 
-function achaLoja(nome) {
-  const alvo = normalizar(nome);
-  const lojas = lojasDaCidade();
-  return (
-    lojas.find((l) => normalizar(l.nome) === alvo) ||
-    lojas.find((l) => normalizar(l.nome).includes(alvo) || alvo.includes(normalizar(l.nome))) ||
-    null
-  );
-}
 
 function atualizarCidadeHome() {
   const c = cidadeAtual();
   $('#cidade-atual').textContent = c ? `Cidade: ${rotuloCidade(c)}` : 'Cidade: escolha em Opções';
 }
 
+// Menu de lojas da Home: só as lojas da cidade escolhida.
 function atualizarListaLojas() {
-  const dl = $('#lojas-lista');
-  dl.innerHTML = '';
-  lojasDaCidade().forEach((l) => {
-    const o = document.createElement('option');
-    o.value = l.nome;
-    dl.appendChild(o);
-  });
+  const sel = $('#loja');
+  const anterior = sel.value;
+  const lojas = lojasDaCidade();
+  sel.innerHTML = '';
+  const vazio = !cidadeAtual() ? 'Escolha a cidade em Opções' : 'Nenhuma loja nesta cidade';
+  sel.add(new Option(lojas.length ? 'Escolha a loja' : vazio, ''));
+  lojas.forEach((l) => sel.add(new Option(l.nome, l.id)));
+  sel.add(new Option('+ Adicionar loja', '__nova'));
+  if (lojas.some((l) => l.id === anterior)) sel.value = anterior;
 }
+
+$('#loja').addEventListener('change', (e) => {
+  if (e.target.value !== '__nova') return;
+  e.target.value = '';
+  if (!cidadeAtual()) {
+    navegar('opcoes');
+    mensagem('Escolha a cidade antes de cadastrar a loja.', true, '#msg-opcoes');
+    return;
+  }
+  abrirFormLoja(null);
+});
 
 // ---------- navegação entre telas ----------
 
@@ -356,11 +361,11 @@ async function calcular() {
   const cidade = cidadeAtual();
   if (!cidade) return mensagem('Escolha a cidade em Opções.', true);
 
-  const nome = $('#loja').value.trim();
+  const lojaId = $('#loja').value;
   const cliente = $('#cliente').value.trim();
   const valor = parseFloat($('#valor').value.replace(',', '.'));
 
-  if (!nome) return mensagem('Informe o nome da loja.', true);
+  if (!lojaId || lojaId === '__nova') return mensagem('Escolha a loja no menu.', true);
   if (!cliente) return mensagem('Informe o endereço do cliente.', true);
   if (!(valor > 0)) return mensagem('Informe o valor pago.', true);
 
@@ -369,26 +374,9 @@ async function calcular() {
     minhaPos = await obterPosicao();
     $('#estado-local').textContent = `Localização: ok (precisão ~${minhaPos.precisao} m)`;
 
-    const loja = achaLoja(nome);
-    if (loja) {
-      await concluir(loja, { cliente, valor });
-      return;
-    }
-
-    // loja nova: busca o endereço e pede confirmação no mapa
-    mensagem('Buscando a loja...');
-    const g = await geocodificar(nome, cidade).catch(() => null);
-    pendente = {
-      id: null,
-      nome,
-      endereco: '',
-      cidade,
-      origem: 'home',
-      calc: { cliente, valor },
-    };
-    navegar('mapa');
-    await abrirMapa(g, pendente);
-    mensagem('Confirme o ponto da loja no mapa.');
+    const loja = todasLojas().find((l) => l.id === lojaId);
+    if (!loja) return mensagem('Loja não encontrada. Escolha de novo.', true);
+    await concluir(loja, { cliente, valor });
   } catch (e) {
     mensagem(e.message, true);
   }
